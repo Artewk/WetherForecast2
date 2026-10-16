@@ -9,6 +9,25 @@ namespace WetherForecast2
 {
     class Program
     {
+        static void PrintForecast(GeoResult place, DailyData daily)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Прогноз для: " + place.Name + ", " + place.Country);
+            Console.WriteLine();
+            Console.WriteLine("Дата".PadRight(12) + "Мін".PadRight(8) + "Макс".PadRight(8) + "Опади, мм");
+            Console.WriteLine(new string('-', 38));
+
+            for (int i = 0; i < daily.Time.Count; i++)
+            {
+                string date = daily.Time[i];
+                string min = daily.TempMin[i].ToString("F1");
+                string max = daily.TempMax[i].ToString("F1");
+                string rain = daily.Precipitation[i].ToString("F1");
+
+                Console.WriteLine(date.PadRight(12) + min.PadRight(8) + max.PadRight(8) + rain);
+            }
+        }
+
         static async Task Main(string[] args)
         {
             Console.InputEncoding = System.Text.Encoding.UTF8;
@@ -54,16 +73,7 @@ namespace WetherForecast2
 
             ForecastResponse forecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson, options);
 
-            Console.WriteLine();
-            Console.WriteLine("Прогноз на " + forecast.Daily.Time.Count + " днів:");
-
-            for (int i = 0; i < forecast.Daily.Time.Count; i++)
-            {
-                Console.WriteLine(forecast.Daily.Time[i]
-                    + ": мін " + forecast.Daily.TempMin[i]
-                    + ", макс " + forecast.Daily.TempMax[i]
-                    + ", опади " + forecast.Daily.Precipitation[i]);
-            }
+            PrintForecast(place, forecast.Daily);
         }
     }
 }
