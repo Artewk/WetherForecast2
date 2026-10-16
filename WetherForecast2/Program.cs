@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using WetherForecast2.Models;
 using System.Globalization;
+using System.Collections.Generic;
+using System.IO;
 
 namespace WetherForecast2
 {
@@ -28,6 +30,63 @@ namespace WetherForecast2
             }
         }
 
+        static List<HistoryEntry> LoadHistory()
+        {
+            if (!File.Exists(HistoryFile)) {return new List<HistoryEntry>();}
+
+            try
+            {
+                string json = File.ReadAllText(HistoryFile);
+                List<HistoryEntry> list = JsonSerializer.Deserialize<List<HistoryEntry>>(json);
+
+                if (list == null) {return new List<HistoryEntry>();}
+
+                return list;
+            }
+            catch (JsonException)
+            {
+                //Якшо файл зіпсований то починаємо з порожньої історії
+                return new List<HistoryEntry>();
+            }
+        }
+
+        static void SaveHistory(List<HistoryEntry> history)
+        {
+            JsonSerializerOptions writeOptions = new JsonSerializerOptions();
+            writeOptions.WriteIndented = true;
+            //Без цього, українські літери в файлі стануть кодами
+            writeOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+
+            try
+            {
+                string json = JsonSerializer.Serialize(history, writeOptions);
+                File.WriteAllText(HistoryFile, json);
+            }
+            catch (IOException)
+            {
+                Console.WriteLine("Не вдалося зберегти історію у файл.");
+            }
+        }
+
+        static void ShowHistory(List<HistoryEntry> history)
+        {
+            if (history.Count == 0)
+            {
+                Console.WriteLine("Історія порожня.");
+                return;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Останні запити:");
+
+            for (int i = 0; i < history.Count; i++)
+            {
+                HistoryEntry item = history[i];
+                Console.WriteLine((i + 1) + ". " + item.Date + "  " + item.City + ", " + item.Country);
+            }
+        }
+
+        const string HistoryFile = "history.json";
         static async Task Main(string[] args)
         {
             Console.InputEncoding = System.Text.Encoding.UTF8;
@@ -40,7 +99,10 @@ namespace WetherForecast2
             JsonSerializerOptions options = new JsonSerializerOptions();
             options.PropertyNameCaseInsensitive = true;
 
-            Console.WriteLine("Програма прогнозу погоди. Для виходу введіть: вихід");
+            List<HistoryEntry> history = LoadHistory();
+
+            Console.WriteLine("Програма прогнозу погоди.");
+            Console.WriteLine("Команди: історія, вихід");
 
             while (true)
             {
@@ -59,6 +121,12 @@ namespace WetherForecast2
                 {
                     Console.WriteLine("До побачення!");
                     break;
+                }
+
+                if (city.ToLower() == "історія")
+                {
+                    ShowHistory(history);
+                    continue;
                 }
 
                 if (city == "")
@@ -101,6 +169,20 @@ namespace WetherForecast2
                     }
 
                     PrintForecast(place, forecast.Daily);
+
+                    HistoryEntry entry = new HistoryEntry();
+                    entry.City = place.Name;
+                    entry.Country = place.Country;
+                    entry.Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    history.Add(entry);
+
+                    //остаються тільки останні 10 записів
+                    while (history.Count > 10)
+                    {
+                        history.RemoveAt(0);
+                    }
+
+                    SaveHistory(history);
                 }
                 catch (HttpRequestException)
                 {
