@@ -33,75 +33,87 @@ namespace WetherForecast2
             Console.InputEncoding = System.Text.Encoding.UTF8;
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            Console.Write("Введіть місто: ");
-            string city = Console.ReadLine();
+            // Створюємо один раз, а не на кожне коло циклу
+            HttpClient client = new HttpClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
 
-            if (city == null || city.Trim() == "")
+            JsonSerializerOptions options = new JsonSerializerOptions();
+            options.PropertyNameCaseInsensitive = true;
+
+            Console.WriteLine("Програма прогнозу погоди. Для виходу введіть: вихід");
+
+            while (true)
             {
-                Console.WriteLine("Помилка: назву міста не введено.");
-                return;
-            }
+                Console.WriteLine();
+                Console.Write("Введіть місто: ");
+                string city = Console.ReadLine();
 
-            try
-            {
-                HttpClient client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
-
-                JsonSerializerOptions options = new JsonSerializerOptions();
-                options.PropertyNameCaseInsensitive = true;
-
-                string url = "https://geocoding-api.open-meteo.com/v1/search?name="
-                    + Uri.EscapeDataString(city) + "&count=1&language=uk";
-
-                string json = await client.GetStringAsync(url);   
-
-                GeoResponse geo = JsonSerializer.Deserialize<GeoResponse>(json, options);
-
-                if (geo.Results == null || geo.Results.Count == 0)
+                if (city == null)
                 {
-                    Console.WriteLine("Місто не знайдено.");
-                    return;
+                    break;
                 }
 
-                GeoResult place = geo.Results[0];
+                city = city.Trim();
 
-                Console.WriteLine("Знайдено: " + place.Name + ", " + place.Country);
-                Console.WriteLine("Широта: " + place.Latitude);
-                Console.WriteLine("Довгота: " + place.Longitude);
-
-                //Перетворюємо координати в текст з крапкою, а не комою
-                string lat = place.Latitude.ToString(CultureInfo.InvariantCulture);
-                string lon = place.Longitude.ToString(CultureInfo.InvariantCulture);
-
-                string forecastUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + lat
-                    + "&longitude=" + lon
-                    + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
-                    + "&forecast_days=5&timezone=auto";
-
-                string forecastJson = await client.GetStringAsync(forecastUrl);
-
-                ForecastResponse forecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson, options);
-
-                if (forecast == null || forecast.Daily == null)
+                if (city.ToLower() == "вихід")
                 {
-                    Console.WriteLine("Сервер не повернув дані прогнозу.");
-                    return;
+                    Console.WriteLine("До побачення!");
+                    break;
                 }
 
-                PrintForecast(place, forecast.Daily);
-            }
+                if (city == "")
+                {
+                    Console.WriteLine("Помилка: назву міста не введено.");
+                    continue;
+                }
 
-            catch (HttpRequestException)
-            {
-                Console.WriteLine("Помилка мережі: перевірте інтернет-з'єднання або спробуйте пізніше.");
-            }
-            catch (TaskCanceledException)
-            {
-                Console.WriteLine("Сервер не відповів вчасно. Спробуйте ще раз.");
-            }
-            catch (JsonException)
-            {
-                Console.WriteLine("Не вдалося розібрати відповідь сервера.");
+                try
+                {
+                    string url = "https://geocoding-api.open-meteo.com/v1/search?name="
+                        + Uri.EscapeDataString(city) + "&count=1&language=uk";
+
+                    string json = await client.GetStringAsync(url);
+                    GeoResponse geo = JsonSerializer.Deserialize<GeoResponse>(json, options);
+
+                    if (geo == null || geo.Results == null || geo.Results.Count == 0)
+                    {
+                        Console.WriteLine("Місто не знайдено.");
+                        continue;
+                    }
+
+                    GeoResult place = geo.Results[0];
+
+                    string lat = place.Latitude.ToString(CultureInfo.InvariantCulture);
+                    string lon = place.Longitude.ToString(CultureInfo.InvariantCulture);
+
+                    string forecastUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + lat
+                        + "&longitude=" + lon
+                        + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
+                        + "&forecast_days=5&timezone=auto";
+
+                    string forecastJson = await client.GetStringAsync(forecastUrl);
+                    ForecastResponse forecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson, options);
+
+                    if (forecast == null || forecast.Daily == null)
+                    {
+                        Console.WriteLine("Сервер не повернув дані прогнозу.");
+                        continue;
+                    }
+
+                    PrintForecast(place, forecast.Daily);
+                }
+                catch (HttpRequestException)
+                {
+                    Console.WriteLine("Помилка мережі: перевірте інтернет-з'єднання або спробуйте пізніше.");
+                }
+                catch (TaskCanceledException)
+                {
+                    Console.WriteLine("Сервер не відповів вчасно. Спробуйте ще раз.");
+                }
+                catch (JsonException)
+                {
+                    Console.WriteLine("Не вдалося розібрати відповідь сервера.");
+                }
             }
         }
     }
