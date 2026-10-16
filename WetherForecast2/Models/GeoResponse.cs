@@ -8,6 +8,6 @@ namespace WetherForecast2.Models
 {
     internal class GeoResponse
     {
-        public List<GeoResponse> Results {  get; set; }
+        public List<GeoResult> Results {  get; set; }
     }
 }
