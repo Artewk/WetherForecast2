@@ -36,44 +36,73 @@ namespace WetherForecast2
             Console.Write("Введіть місто: ");
             string city = Console.ReadLine();
 
-            HttpClient client = new HttpClient();
-
-            string url = "https://geocoding-api.open-meteo.com/v1/search?name="
-                + Uri.EscapeDataString(city) + "&count=1&language=uk";
-
-            string json = await client.GetStringAsync(url);
-
-            JsonSerializerOptions options = new JsonSerializerOptions();
-            options.PropertyNameCaseInsensitive = true;
-
-            GeoResponse geo = JsonSerializer.Deserialize<GeoResponse>(json, options);
-
-            if (geo.Results == null || geo.Results.Count == 0)
+            if (city == null || city.Trim() == "")
             {
-                Console.WriteLine("Місто не знайдено.");
+                Console.WriteLine("Помилка: назву міста не введено.");
                 return;
             }
 
-            GeoResult place = geo.Results[0];
+            try
+            {
+                HttpClient client = new HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
 
-            Console.WriteLine("Знайдено: " + place.Name + ", " + place.Country);
-            Console.WriteLine("Широта: " + place.Latitude);
-            Console.WriteLine("Довгота: " + place.Longitude);
+                JsonSerializerOptions options = new JsonSerializerOptions();
+                options.PropertyNameCaseInsensitive = true;
 
-            //Перетворюємо координати в текст з крапкою, а не комою
-            string lat = place.Latitude.ToString(CultureInfo.InvariantCulture);
-            string lon = place.Longitude.ToString(CultureInfo.InvariantCulture);
+                string url = "https://geocoding-api.open-meteo.com/v1/search?name="
+                    + Uri.EscapeDataString(city) + "&count=1&language=uk";
 
-            string forecastUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + lat
-                + "&longitude=" + lon
-                + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
-                + "&forecast_days=5&timezone=auto";
+                string json = await client.GetStringAsync(url);   
 
-            string forecastJson = await client.GetStringAsync(forecastUrl);
+                GeoResponse geo = JsonSerializer.Deserialize<GeoResponse>(json, options);
 
-            ForecastResponse forecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson, options);
+                if (geo.Results == null || geo.Results.Count == 0)
+                {
+                    Console.WriteLine("Місто не знайдено.");
+                    return;
+                }
 
-            PrintForecast(place, forecast.Daily);
+                GeoResult place = geo.Results[0];
+
+                Console.WriteLine("Знайдено: " + place.Name + ", " + place.Country);
+                Console.WriteLine("Широта: " + place.Latitude);
+                Console.WriteLine("Довгота: " + place.Longitude);
+
+                //Перетворюємо координати в текст з крапкою, а не комою
+                string lat = place.Latitude.ToString(CultureInfo.InvariantCulture);
+                string lon = place.Longitude.ToString(CultureInfo.InvariantCulture);
+
+                string forecastUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + lat
+                    + "&longitude=" + lon
+                    + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
+                    + "&forecast_days=5&timezone=auto";
+
+                string forecastJson = await client.GetStringAsync(forecastUrl);
+
+                ForecastResponse forecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson, options);
+
+                if (forecast == null || forecast.Daily == null)
+                {
+                    Console.WriteLine("Сервер не повернув дані прогнозу.");
+                    return;
+                }
+
+                PrintForecast(place, forecast.Daily);
+            }
+
+            catch (HttpRequestException)
+            {
+                Console.WriteLine("Помилка мережі: перевірте інтернет-з'єднання або спробуйте пізніше.");
+            }
+            catch (TaskCanceledException)
+            {
+                Console.WriteLine("Сервер не відповів вчасно. Спробуйте ще раз.");
+            }
+            catch (JsonException)
+            {
+                Console.WriteLine("Не вдалося розібрати відповідь сервера.");
+            }
         }
     }
 }
