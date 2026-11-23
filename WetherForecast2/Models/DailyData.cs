@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 
 namespace WetherForecast2.Models
 {
-    internal class DailyData
+    public class DailyData
     {
         public List<string> Time { get; set; }
 

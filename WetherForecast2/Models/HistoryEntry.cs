@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace WetherForecast2.Models
 {
-    internal class HistoryEntry
+    public class HistoryEntry
     {
         public string City { get; set; }
         public string Country { get; set; }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace WetherForecast2.Models
 {
-    internal class GeoResult
+    public class GeoResult
     {
         public string Name { get; set; }
         public string Country { get; set; }
